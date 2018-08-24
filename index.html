@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>deform</title>
+		<style>
+			body {
+				height: 100%;
+				width: 100%;
+			}
+
+			canvas {
+				background: white;
+				border: 2px solid #3f3f3f;
+				display: block;
+				margin: 0 auto;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas" height="500" width="500"></canvas>
+    <div
+      <label for="covariance">
+        Covariance
+        <input type="range" step="1" min="1" max="2000" name="covariance" id="covariance" oninput="covarianceOutput.value = covariance.value" value="1"/>
+        <output name="covarianceOutput" id="covarianceOutput">1</output>
+      </label>
+    </div>
+    <div>
+      <label for="deform-depth">
+        Deformation depth
+        <input type="range" step="1" min="0" max="8" name="deform-depth" id="deform" oninput="deformOutput.value = deform.value" value="0" />
+        <output id="deformOutput">0</output>
+      </label>
+    </div>
+    <button id="redraw">Redraw</button>
+		<script src="output.js"></script>
+	</body>
+</html>
