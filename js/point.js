@@ -5,9 +5,7 @@ class Point {
   }
 }
 
-const PointFactory = (x, y) => {
-  return new Point({ x, y });
-};
+const PointFactory = (x, y) => new Point({ x, y });
 
 export {
   Point,

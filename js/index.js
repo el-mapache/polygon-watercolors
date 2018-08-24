@@ -1,41 +1,33 @@
-import multivariateNormal from "multivariate-normal";
 import Shapes from './shapes';
 import PointFactory from './point';
 import random from './utils/random';
 import gaussian from './utils/gaussian';
 
-const DEFAULTS = {
-  FILL: '#af4144',
+const ALPHA = .06;
+const COLORS = [
+  `hsla(0, 100%, 66%, ${ALPHA})`,
+  `hsla(100, 100%, 70%, ${ALPHA})`,
+  `hsla(204, 100%, 50%, ${ALPHA})`,
+];
+
+const POLYGON = {
   DEPTH: 5,
   VARIANCE: 20,
   VARIANCE_DECREASE: 2,
   POLYGON_COUNT: 200,
-  DROPLETS: 5,
-  DROPLET_OFFSET: (Math.PI * 2) / this.DROPLETS,
-  EDGES: 10,
+  DROPLET_COUNT: 6,
+  EDGES: 8,
 };
 
-const DEFAULT_FILL = '#af4144';
+const DROPLET_OFFSET = (Math.PI * 2) / POLYGON.DROPLET_COUNT;
+
 const DEFAULT_DEPTH = 5;
 const DEFAULT_VARIANCE = 20;
 const DEFAULT_VARIANCE_DECREASE = 2;
 
-
-
-const DEFAULT_COVARIANTS = [
-  [10, 0],
-  [0, 10]
-];
-
-let covariance = DEFAULT_COVARIANTS;
-
-const SHAPE_START_X = 100;
-const SHAPE_START_Y = 300;
-
-
-
 const canvas = document.getElementById('canvas');
 const context = canvas.getContext('2d');
+context.globalCompositeOperation = 'multiply';
 
 const width = canvas.width;
 const height = canvas.height;
@@ -63,17 +55,30 @@ const randomCovariant = num =>
 
 const makeCovariant = max => randomCovariant(random(1, max));
 
-const drawPolygon = (context, start, coords, fill = DEFAULT_FILL) => {
-  context.beginPath();
-  context.moveTo(start.x, start.y);
-  coords.forEach(coordPair => context.lineTo(coordPair.x, coordPair.y));
-  context.closePath();
-};
+const drawPolygon = (context, verticies) => {
+  const [ firstVertex ] = verticies;
+  const fill = COLORS[random(0,2) | 0];
 
-const fill = (context, fill = DEFAULT_FILL) => {
+  let i = 1;
+
   context.fillStyle = fill;
+
+  context.save();
+  context.beginPath();
+  context.translate(centerX, centerY);
+  
+  context.moveTo(firstVertex.x, firstVertex.y);
+
+  while (i < verticies.length) {
+    const vertex = verticies[i];
+    context.lineTo(vertex.x, vertex.y);
+    i++;
+  }
+
   context.fill();
-}
+  context.closePath();
+  context.restore();
+};
 
 const fillTransparent = () => {
   context.fillStyle = 'rgba(255, 55, 57, .04)';
@@ -89,7 +94,7 @@ const deform = (verticies, maxDepth = 0, variance, varianceDecrease) => {
   for (let i = 0; i < rangeEnd; i++) {
     const start = verticies[i];
     const end = verticies[i + 1];
-    const nextVerticies = decomposeLine(start, end);
+    const nextVerticies = decomposeLine(start, end, variance);
 
     // insert two new pairs: pairs = ([0], B') and (B' to [1])
     deformedVerticies = deformedVerticies.concat(nextVerticies);
@@ -98,7 +103,7 @@ const deform = (verticies, maxDepth = 0, variance, varianceDecrease) => {
   verticies.length = 0;
 
   if (maxDepth) {
-    return deform(deformedVerticies, maxDepth - 1);
+    return deform(deformedVerticies, maxDepth - 1, variance / varianceDecrease, varianceDecrease);
   }
 
   return deformedVerticies;
@@ -109,8 +114,13 @@ const deform = (verticies, maxDepth = 0, variance, varianceDecrease) => {
 // to have a vector
 //
 // Break line up into two lines
-const decomposeLine = (startPoint, endPoint) => {
-  const midpoint = applyVector(midpointOfLine(startPoint, endPoint));
+const decomposeLine = (startPoint, endPoint, variance) => {
+  const midpoint = applyMagnitude(
+    midpointOfLine(
+      startPoint,
+      endPoint
+    )
+  );
   // from midpoint, pick a new destination (B') using normal distribution
   //const covariant = (() => {
   //  const x = randomFromRange((midpoint[0] | 0) - 10, (midpoint[0] | 0) + 10) | 0;
@@ -121,25 +131,25 @@ const decomposeLine = (startPoint, endPoint) => {
   //    [ midpoint[1], 1 ] 
   //  ];
   //})();
-  const newMidpoint = MVNFromPoint(midpoint, covariance);
+  const x = midpoint.x + gaussian() * variance;
+  const y = midpoint.y + gaussian() * variance;
+
   //const [mpX, mpY] = newMidpoint;
   //const finalMid = [mpX - (mpX * 0.1), mpY ^ (mpY * 0.1) ]
-  return [startPoint, newMidpoint, endPoint];
+  return [startPoint, PointFactory(x, y), endPoint];
 };
 
-const applyVector = point => {
-  return point;
-  // const magnitude = random(0.1, 0.7);
-  // console.log(magnitude);
-  // return [point[0] * magnitude, point[1] * magnitude];
+const applyMagnitude = (point) => { 
+  const magnitude = 1;//random(0.1, 0.7);
+  return PointFactory(point.x * magnitude, point.y * magnitude);
 };
 
 const midpointOfLine = (startPoint, endPoint) => {
-  console.log(startPoint, endPoint)
-  return [ (startPoint.x + endPoint.x) / 2, (startPoint.y + endPoint.y) / 2 ];
+  return PointFactory(
+    (startPoint.x + endPoint.x) * half,
+    (startPoint.y + endPoint.y) * half,
+  );
 };
-
-const MVNFromPoint = (point, covariant) => multivariateNormal(point, covariant).sample();//makeCovariant(covariant)).sample();
 
 const drawLayers = (times, context, polygon) => {
   let count = times;
@@ -154,41 +164,38 @@ const drawLayers = (times, context, polygon) => {
 };
 
 const draw = () => {
-  const polygons = new Array(DEFAULTS.DROPLETS).fill().map((_, i) => {
+  const polygons = new Array(POLYGON.DROPLET_COUNT).fill().map((_, i) => {
     const polygonOptions = {
-      centerX: Math.cos(DEFAULTS.DROPLET_OFFSET * i) * gaussian(1),
-      centerY: Math.cos(DEFAULTS.DROPLET_OFFSET * i) * gaussian(1),
-      sideLength: 100,
-      edges: DEFAULTS.EDGES,
+      centerX: Math.cos(DROPLET_OFFSET * i) * Math.min(centerX, centerY) * 0.75 * gaussian(1),
+      centerY: Math.sin(DROPLET_OFFSET * i) * Math.min(centerX, centerY) * 0.75 * gaussian(1),
+      edgeLength: Math.min(Math.min(centerX, centerY) * .5, 20) * random(-15, 15),
+      edges: POLYGON.EDGES,
     };
-  
-    const polygon = Shapes.regularPolygon(polygonOptions);
     
-    return polygon;
+    return Shapes.regularPolygon(polygonOptions);;
   });
 
   polygons.forEach((polygon) => {
-    drawPolygon(context, [ polygonOptions.centerX, polygonOptions.centerY ], polygon);
-    fill(context);
-    fillTransparent(context);
+    drawPolygon(context, deform(polygon, 4, POLYGON.VARIANCE, POLYGON.VARIANCE_DECREASE));
   });
-  const polygonOptions = {
-		centerX,
-		centerY,
-		sideLength: 100,
-		edges: DEFAULTS.EDGES,
-	};
 
-  const polygon = Shapes.regularPolygon(polygonOptions);
-  //const deformed = deform(deform(deform(polygon, 2, 1000), 2), 2);
-  //const deformed1 = deform(polygon);
+  // const polygonOptions = {
+	// 	centerX,
+	// 	centerY,
+	// 	sideLength: 100,
+	// 	edges: DEFAULTS.EDGES,
+	// };
 
-  context.clearRect(0, 0, width, height);
-  //drawLayers(30, context, deformed);
-  //drawPolygon(context, [200, 200], deformed);
-  drawPolygon(context, [ polygonOptions.centerX, polygonOptions.centerY ], polygon);
-  fill(context);
-  fillTransparent(context);
+  // const polygon = Shapes.regularPolygon(polygonOptions);
+  // //const deformed = deform(deform(deform(polygon, 2, 1000), 2), 2);
+  // //const deformed1 = deform(polygon);
+
+  // context.clearRect(0, 0, width, height);
+  // //drawLayers(30, context, deformed);
+  // //drawPolygon(context, [200, 200], deformed);
+  // drawPolygon(context, [ polygonOptions.centerX, polygonOptions.centerY ], polygon);
+  // fill(context);
+  // fillTransparent(context);
 };
 
 draw();

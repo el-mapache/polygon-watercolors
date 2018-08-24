@@ -1,4 +1,4 @@
-const randomGaussian = (mean = 0, sd = 1) => {
+const gaussian = (mean = 0, sd = 1) => {
   let y1;
   let x1;
   let x2
@@ -23,4 +23,4 @@ const randomGaussian = (mean = 0, sd = 1) => {
   return y1 * sd + mean;
 };
 
-module.exports = randomGaussian;
+module.exports = gaussian;
