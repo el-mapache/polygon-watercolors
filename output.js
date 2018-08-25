@@ -134,23 +134,54 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 
 
 
-const ALPHA = .06;
-const COLORS = [`hsla(0, 100%, 66%, ${ALPHA})`, `hsla(100, 100%, 70%, ${ALPHA})`, `hsla(204, 100%, 50%, ${ALPHA})`];
+const ALPHA = .009;
+const COLORS = [
+// `hsla(0, 100%, 66%, ${ALPHA})`,
+// `hsla(100, 100%, 70%, ${ALPHA})`,
+// `hsla(204, 100%, 50%, ${ALPHA})`,
+
+//`hsla(25, 100%, 29%, ${ALPHA})`,
+`rgba(255, 0, 0, ${ALPHA})`, `rgba(0, 255, 0, ${ALPHA})`, `rgba(0, 0, 255, ${ALPHA})`];
 
 const POLYGON = {
   DEPTH: 5,
   VARIANCE: 20,
   VARIANCE_DECREASE: 2,
   POLYGON_COUNT: 200,
-  DROPLET_COUNT: 6,
-  EDGES: 8
+  POLYGON_STEP: 2,
+  DROPLET_COUNT: 3,
+  EDGES: 7
 };
 
 const DROPLET_OFFSET = Math.PI * 2 / POLYGON.DROPLET_COUNT;
 
-const DEFAULT_DEPTH = 5;
-const DEFAULT_VARIANCE = 20;
-const DEFAULT_VARIANCE_DECREASE = 2;
+// cool pattern from a codepen example doing the same code!
+// const makeStitchPattern = () => {
+//     const ctxStitch = document
+//     .querySelector('.js-canvas-stitch')
+//     .getContext('2d');
+
+//   const stitchWidth = 5;
+
+//   ctxStitch.canvas.width = stitchWidth;
+//   ctxStitch.canvas.height = stitchWidth;
+
+//   ctxStitch.strokeStyle = `rgba(220, 220, 220, 0.1)`;
+
+//   ctxStitch.beginPath();
+//   ctxStitch.moveTo(0, 0);
+//   ctxStitch.lineTo(stitchWidth, stitchWidth);
+//   ctxStitch.stroke();
+//   ctxStitch.closePath();
+
+//   ctxStitch.beginPath();
+//   ctxStitch.moveTo(0, stitchWidth);
+//   ctxStitch.lineTo(stitchWidth, 0);
+//   ctxStitch.stroke();
+//   ctxStitch.closePath();
+
+//   const stitchPattern = ctx.createPattern(ctxStitch.canvas, 'repeat');
+// }
 
 const canvas = document.getElementById('canvas');
 const context = canvas.getContext('2d');
@@ -162,8 +193,6 @@ const half = .5;
 const centerX = width * half;
 const centerY = height * half;
 
-console.log(Math.min(Math.min(centerX, centerY) * 0.5, 150) * __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_2__utils_random__["a" /* default */])(-15, 15));
-
 // When drawing a polygon on canvas, we need to start and end and the initial
 // point that the canvas should start drawing at. This ensures that each pair
 // of coords can be manipulated. For example, leaving out the first point in
@@ -174,13 +203,9 @@ console.log(Math.min(Math.min(centerX, centerY) * 0.5, 150) * __webpack_require_
  * canvas/paper class -> implements draw methods?
  */
 
-const randomCovariant = num => [[num, 0], [0, num]];
-
-const makeCovariant = max => randomCovariant(__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_2__utils_random__["a" /* default */])(1, max));
-
-const drawPolygon = (context, verticies) => {
+const drawPolygon = (context, verticies, colorIndex) => {
   const [firstVertex] = verticies;
-  const fill = COLORS[__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_2__utils_random__["a" /* default */])(0, 2) | 0];
+  const fill = COLORS[colorIndex];
 
   let i = 1;
 
@@ -203,27 +228,30 @@ const drawPolygon = (context, verticies) => {
   context.restore();
 };
 
-const fillTransparent = () => {
-  context.fillStyle = 'rgba(255, 55, 57, .04)';
-  context.fill();
-};
-
 const deform = (verticies, maxDepth = 0, variance, varianceDecrease) => {
   // We don't want to try and compare the last coordinate with
   // anything, it would be an out of range error
   const rangeEnd = verticies.length - 1;
-  let deformedVerticies = [];
+  let deformedVerticies = [verticies[0]];
 
-  for (let i = 0; i < rangeEnd; i++) {
+  for (let i = 1; i < rangeEnd; i++) {
     const start = verticies[i];
     const end = verticies[i + 1];
-    const nextVerticies = decomposeLine(start, end, variance);
 
-    // insert two new pairs: pairs = ([0], B') and (B' to [1])
+    const midpoint = {
+      x: (start.x + end.x) * half,
+      y: (start.y + end.y) * half
+    };
+
+    // from midpoint, pick a new destination (B') using normal distribution
+    const x = midpoint.x + __WEBPACK_IMPORTED_MODULE_3__utils_gaussian___default()() * variance;
+    const y = midpoint.y + __WEBPACK_IMPORTED_MODULE_3__utils_gaussian___default()() * variance;
+
+    const nextVerticies = [start, { x, y }];
+
+    // insert a new end point for the origin: pairs = ([0], B')
     deformedVerticies = deformedVerticies.concat(nextVerticies);
   }
-
-  verticies.length = 0;
 
   if (maxDepth) {
     return deform(deformedVerticies, maxDepth - 1, variance / varianceDecrease, varianceDecrease);
@@ -232,91 +260,70 @@ const deform = (verticies, maxDepth = 0, variance, varianceDecrease) => {
   return deformedVerticies;
 };
 
-//Im not using the word vector right here
-//these are points, i need to get the magnitude and direction 
-// to have a vector
-//
 // Break line up into two lines
 const decomposeLine = (startPoint, endPoint, variance) => {
-  const midpoint = applyMagnitude(midpointOfLine(startPoint, endPoint));
-  // from midpoint, pick a new destination (B') using normal distribution
-  //const covariant = (() => {
-  //  const x = randomFromRange((midpoint[0] | 0) - 10, (midpoint[0] | 0) + 10) | 0;
-  //  const y = randomFromRange((midpoint[1] | 0) - 10, (midpoint[1] | 0) + 10) | 0;
+  const midpoint = {
+    x: (startPoint.x + endPoint.x) * half,
+    y: (startPoint.y + endPoint.y) * half
+  };
 
-  //  return [ 
-  //    [ 1, midpoint[0] ],
-  //    [ midpoint[1], 1 ] 
-  //  ];
-  //})();
+  // from midpoint, pick a new destination (B') using normal distribution
   const x = midpoint.x + __WEBPACK_IMPORTED_MODULE_3__utils_gaussian___default()() * variance;
   const y = midpoint.y + __WEBPACK_IMPORTED_MODULE_3__utils_gaussian___default()() * variance;
 
-  //const [mpX, mpY] = newMidpoint;
-  //const finalMid = [mpX - (mpX * 0.1), mpY ^ (mpY * 0.1) ]
-  return [startPoint, __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__point__["a" /* default */])(x, y), endPoint];
+  return [startPoint, { x, y }];
 };
 
-const applyMagnitude = point => {
-  const magnitude = 1; //random(0.1, 0.7);
-  return __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__point__["a" /* default */])(point.x * magnitude, point.y * magnitude);
-};
+const drawLayer = (context, polygon, colorIndex) => {
+  let count = 0;
 
-const midpointOfLine = (startPoint, endPoint) => {
-  return __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__point__["a" /* default */])((startPoint.x + endPoint.x) * half, (startPoint.y + endPoint.y) * half);
-};
+  while (count < POLYGON.DROPLET_COUNT) {
+    requestAnimationFrame(() => {
+      const deformed = deform(polygon, POLYGON.DEPTH, POLYGON.VARIANCE * __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_2__utils_random__["a" /* default */])(-1, 4) * __WEBPACK_IMPORTED_MODULE_3__utils_gaussian___default()(), POLYGON.VARIANCE_DECREASE);
+      drawPolygon(context, deformed, colorIndex);
+    });
 
-const drawLayers = (times, context, polygon) => {
-  let count = times;
-
-  while (count) {
-    let copy = deform(polygon.slice());
-    drawPolygon(context, [200, 200], copy);
-    fillTransparent(context);
-    copy.length = 0;
-    count -= 1;
+    count += 1;
   }
 };
 
+let total = 0;
+
+const spreadVariance = distance => Math.min(__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_2__utils_random__["a" /* default */])(-1, centerX) * __WEBPACK_IMPORTED_MODULE_3__utils_gaussian___default()(1), distance);
+
+const makeDeformedPolygons = (count, positionOffset, numEdges) => new Array(count).fill().map((_, i) => {
+  const polygonOptions = {
+    centerX: Math.cos(positionOffset * i) * spreadVariance(centerX * half),
+    centerY: Math.sin(positionOffset * i) * spreadVariance(centerY * half),
+    edgeLength: __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_2__utils_random__["a" /* default */])(-1, 100) * __WEBPACK_IMPORTED_MODULE_3__utils_gaussian___default()(),
+    edges: numEdges
+  };
+
+  const polygon = __WEBPACK_IMPORTED_MODULE_0__shapes__["a" /* default */].regularPolygon(polygonOptions);
+
+  return deform(polygon, POLYGON.DEPTH, POLYGON.VARIANCE, POLYGON.VARIANCE_DECREASE);
+});
+
+let polygonsToDraw = makeDeformedPolygons(POLYGON.DROPLET_COUNT, DROPLET_OFFSET, POLYGON.EDGES);
+
+const clear = () => {
+  context.clearRect();
+  total = 0;
+};
+
 const draw = () => {
-  const polygons = new Array(POLYGON.DROPLET_COUNT).fill().map((_, i) => {
-    const polygonOptions = {
-      centerX: Math.cos(DROPLET_OFFSET * i) * Math.min(centerX, centerY) * 0.75 * __WEBPACK_IMPORTED_MODULE_3__utils_gaussian___default()(1),
-      centerY: Math.sin(DROPLET_OFFSET * i) * Math.min(centerX, centerY) * 0.75 * __WEBPACK_IMPORTED_MODULE_3__utils_gaussian___default()(1),
-      edgeLength: Math.min(Math.min(centerX, centerY) * .5, 20) * __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_2__utils_random__["a" /* default */])(-15, 15),
-      edges: POLYGON.EDGES
-    };
+  polygonsToDraw.forEach((polygon, index) => {
+    drawLayer(context, polygon, index);
 
-    return __WEBPACK_IMPORTED_MODULE_0__shapes__["a" /* default */].regularPolygon(polygonOptions);;
+    total += POLYGON.POLYGON_STEP;
+
+    if (total < POLYGON.POLYGON_COUNT) {
+      window.requestAnimationFrame(draw);
+    }
   });
-
-  polygons.forEach(polygon => {
-    drawPolygon(context, deform(polygon, 4, POLYGON.VARIANCE, POLYGON.VARIANCE_DECREASE));
-  });
-
-  // const polygonOptions = {
-  // 	centerX,
-  // 	centerY,
-  // 	sideLength: 100,
-  // 	edges: DEFAULTS.EDGES,
-  // };
-
-  // const polygon = Shapes.regularPolygon(polygonOptions);
-  // //const deformed = deform(deform(deform(polygon, 2, 1000), 2), 2);
-  // //const deformed1 = deform(polygon);
-
-  // context.clearRect(0, 0, width, height);
-  // //drawLayers(30, context, deformed);
-  // //drawPolygon(context, [200, 200], deformed);
-  // drawPolygon(context, [ polygonOptions.centerX, polygonOptions.centerY ], polygon);
-  // fill(context);
-  // fillTransparent(context);
 };
 
 draw();
-
-//document.getElementById('redraw').addEventListener('click', draw);
-//setInterval(() => { draw(); }, 350);
 
 /***/ }),
 
