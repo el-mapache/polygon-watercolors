@@ -3,61 +3,67 @@ import PointFactory from './point';
 import random from './utils/random';
 import gaussian from './utils/gaussian';
 
-const ALPHA = .009;
+const ALPHA = .01;
 const COLORS = [
-  // `hsla(0, 100%, 66%, ${ALPHA})`,
-  // `hsla(100, 100%, 70%, ${ALPHA})`,
-  // `hsla(204, 100%, 50%, ${ALPHA})`,
-
-  //`hsla(25, 100%, 29%, ${ALPHA})`,
   `rgba(255, 0, 0, ${ALPHA})`,
   `rgba(0, 255, 0, ${ALPHA})`,
   `rgba(0, 0, 255, ${ALPHA})`,
 ];
 
 const POLYGON = {
-  DEPTH: 5,
   VARIANCE: 20,
-  VARIANCE_DECREASE: 2,
-  POLYGON_COUNT: 200,
-  POLYGON_STEP: 2,
+  VARIANCE_DECREASE: 6,
   DROPLET_COUNT: 3,
-  EDGES: 7,
+  EDGES: 10,
 };
+
+const LAYERS = {
+  DEPTH: 3,
+  POLYGON_COUNT: 200,
+  POLYGON_STEP: 10,
+}
 
 const DROPLET_OFFSET = (Math.PI * 2) / POLYGON.DROPLET_COUNT;
 
+const appState = {
+  ALPHA,
+  ...COLORS,
+  ...POLYGON,
+  ...LAYERS,
+  DROPLET_OFFSET,
+};
+
 // cool pattern from a codepen example doing the same code!
-// const makeStitchPattern = () => {
-//     const ctxStitch = document
-//     .querySelector('.js-canvas-stitch')
-//     .getContext('2d');
+const makeStitchPattern = (context) => {
+  const ctxStitch = document
+    .createElement('canvas')
+    .getContext('2d');
 
-//   const stitchWidth = 5;
+  const stitchWidth = 10;
 
-//   ctxStitch.canvas.width = stitchWidth;
-//   ctxStitch.canvas.height = stitchWidth;
+  ctxStitch.canvas.width  = stitchWidth;
+  ctxStitch.canvas.height = stitchWidth;
 
-//   ctxStitch.strokeStyle = `rgba(220, 220, 220, 0.1)`;
+  ctxStitch.strokeStyle = `rgba(220, 220, 220, 0.1)`;
 
-//   ctxStitch.beginPath();
-//   ctxStitch.moveTo(0, 0);
-//   ctxStitch.lineTo(stitchWidth, stitchWidth);
-//   ctxStitch.stroke();
-//   ctxStitch.closePath();
+  ctxStitch.beginPath();
+  ctxStitch.moveTo(0, 0);
+  ctxStitch.lineTo(stitchWidth, stitchWidth);
+  ctxStitch.stroke();
+  ctxStitch.closePath();
 
-//   ctxStitch.beginPath();
-//   ctxStitch.moveTo(0, stitchWidth);
-//   ctxStitch.lineTo(stitchWidth, 0);
-//   ctxStitch.stroke();
-//   ctxStitch.closePath();
+  ctxStitch.beginPath();
+  ctxStitch.moveTo(0, stitchWidth);
+  ctxStitch.lineTo(stitchWidth, 0);
+  ctxStitch.stroke();
+  ctxStitch.closePath();
 
-//   const stitchPattern = ctx.createPattern(ctxStitch.canvas, 'repeat');
-// }
+  return context.createPattern(ctxStitch.canvas, 'repeat');
+}
 
 const canvas = document.getElementById('canvas');
 const context = canvas.getContext('2d');
-context.globalCompositeOperation = 'multiply';
+context.globalCompositeOperation = 'overlay';
 
 const width = canvas.width;
 const height = canvas.height;
@@ -76,10 +82,8 @@ const centerY = height * half;
    */
 
 const drawPolygon = (context, verticies, colorIndex) => {
-  const [ firstVertex ] = verticies;
   const fill = COLORS[colorIndex];
-
-  let i = 1;
+  let vertex = verticies.pop();
 
   context.fillStyle = fill;
 
@@ -87,12 +91,10 @@ const drawPolygon = (context, verticies, colorIndex) => {
   context.beginPath();
   context.translate(centerX, centerY);
   
-  context.moveTo(firstVertex.x, firstVertex.y);
+  context.moveTo(vertex.x, vertex.y);
 
-  while (i < verticies.length) {
-    const vertex = verticies[i];
+  while (vertex = verticies.pop()) {
     context.lineTo(vertex.x, vertex.y);
-    i++;
   }
 
   context.fill();
@@ -104,9 +106,9 @@ const deform = (verticies, maxDepth = 0, variance, varianceDecrease) => {
   // We don't want to try and compare the last coordinate with
   // anything, it would be an out of range error
   const rangeEnd = verticies.length - 1;
-  let deformedVerticies = [verticies[0]];
+  let deformedVerticies = [];
 
-  for (let i = 1; i < rangeEnd; i++) {
+  for (let i = 0; i < rangeEnd; i++) {
     const start = verticies[i];
     const end = verticies[i + 1];
 
@@ -116,6 +118,12 @@ const deform = (verticies, maxDepth = 0, variance, varianceDecrease) => {
     };
     
     // from midpoint, pick a new destination (B') using normal distribution
+    /**
+     * altering the x and y here by passing values into the gaussian
+     * function will adjust the direction and stretch of the image painted on to
+     * the canvas. Leaving the mean at 0 (no arguments) will preserve the
+     * polygonal shape.
+    */
     const x = midpoint.x + gaussian() * variance;
     const y = midpoint.y + gaussian() * variance;
   
@@ -133,6 +141,20 @@ const deform = (verticies, maxDepth = 0, variance, varianceDecrease) => {
 }
 
 // Break line up into two lines
+/**
+ * This function finds the midpoint of a line, and creates a new line
+ * from the starting point of the line to a new midpoint, determined
+ * by a gaussian distribution and a set amount of variance.
+ * 
+ * Note: this function is unused as inlining is a bit faster than repeated
+ * function calls
+ * 
+ * @param {Point} startPoint reprsents the start of a line
+ * @param {Point} endPoint represents the end of a line
+ * @param {Number} variance the amount of randomness our new line
+ * 
+ * @returns Array an array of points
+ */
 const decomposeLine = (startPoint, endPoint, variance) => {
   const midpoint = {
     x: (startPoint.x + endPoint.x) * half,
@@ -153,10 +175,14 @@ const drawLayer = (context, polygon, colorIndex) => {
     requestAnimationFrame(() => {
       const deformed = deform(
         polygon,
-        POLYGON.DEPTH,
-        POLYGON.VARIANCE * random(-1, 4) * gaussian(),
+        LAYERS.DEPTH,
+        // low values here provide a bit more spread to the polygons
+        // Higher values in the mean (1st arg) will paint over
+        // the entire canvas, which may or may not be desireable
+        POLYGON.VARIANCE * random(1, 2) * gaussian(),
         POLYGON.VARIANCE_DECREASE
       );
+
       drawPolygon(context, deformed, colorIndex);
     });
 
@@ -171,9 +197,9 @@ const spreadVariance = distance => Math.min(random(-1, centerX) * gaussian(1), d
 const makeDeformedPolygons = (count, positionOffset, numEdges) =>
   new Array(count).fill().map((_, i) => {
     const polygonOptions = {
-      centerX: Math.cos(positionOffset * i) * spreadVariance(centerX * half),
-      centerY: Math.sin(positionOffset * i) * spreadVariance(centerY * half),
-      edgeLength: random(-1, 100) * gaussian(),
+      centerX: Math.cos(positionOffset * i) * spreadVariance(150),
+      centerY: Math.sin(positionOffset * i) * spreadVariance(150),
+      edgeLength: random(-1, 200) * gaussian(),
       edges: numEdges,
     };
 
@@ -181,24 +207,27 @@ const makeDeformedPolygons = (count, positionOffset, numEdges) =>
 
     return deform(
       polygon,
-      POLYGON.DEPTH,
+      LAYERS.DEPTH,
       POLYGON.VARIANCE,
       POLYGON.VARIANCE_DECREASE
     );
   });
 
-let polygonsToDraw = makeDeformedPolygons(
-  POLYGON.DROPLET_COUNT,
-  DROPLET_OFFSET,
-  POLYGON.EDGES
-);
-
 const clear = () => {
-  context.clearRect();
+  context.clearRect(0, 0, width, height);
   total = 0;
 };
 
 const draw = () => {
+  const polygonsToDraw = makeDeformedPolygons(
+    POLYGON.DROPLET_COUNT,
+    DROPLET_OFFSET,
+    POLYGON.EDGES
+  );
+
+  // context.fillStyle = makeStitchPattern(context);
+  // context.fill();
+
   polygonsToDraw.forEach((polygon, index) => {
     drawLayer(
       context,
@@ -206,12 +235,17 @@ const draw = () => {
       index
     );
 
-    total += POLYGON.POLYGON_STEP;
+    total += LAYERS.POLYGON_STEP;
 
-    if (total < POLYGON.POLYGON_COUNT) {
+    if (total < LAYERS.POLYGON_COUNT) {
       window.requestAnimationFrame(draw);
     }
   });
 };
 
 draw();
+
+document.getElementById('redraw').addEventListener('click', () => {
+  clear();
+  draw();
+});
