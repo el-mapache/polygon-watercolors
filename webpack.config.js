@@ -7,11 +7,11 @@ module.exports = {
     module: {
         loaders: [
             {
-                test: /\.js$/,
+                test: /\.jsx|\.js$/,
                 exclude: /(node_modules|vendor)/,
                 loader: "babel-loader",
                 query: {
-                    presets: ["env"],
+                    presets: ["react", "env"],
                     plugins: ["transform-object-rest-spread"]
                 },
             }

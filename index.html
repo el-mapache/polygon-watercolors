@@ -4,21 +4,41 @@
 		<meta charset="utf-8">
 		<title>deform</title>
 		<style>
+			html {
+				font-size: 100%;
+			}
+
 			body {
 				height: 100%;
+				font-size: 16px;
 				width: 100%;
 			}
 
 			canvas {
-				background: white;
-				display: block;
 				margin: 0 auto;
+			}
+
+			.flex {
+				display: flex;
+			}
+
+			.flex > * {
+				justify-content: space-around;
+			}
+			
+			.offset {
+				margin-left: 20px;
+				margin-top: 40px;
 			}
 		</style>
 	</head>
 	<body>
-		<canvas id="canvas" height="800" width="800"></canvas>
-    <button id="redraw">Redraw</button>
+		<div class="offset">
+			<div class="flex">
+				<div id='root'></div>
+				<canvas id="canvas" height="600" width="600"></canvas>
+			</div>
+		</div>
 		<script src="output.js"></script>
 	</body>
 </html>
