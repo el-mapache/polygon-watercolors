@@ -13,15 +13,13 @@ class PolygonControls extends React.Component {
         { 
           Object.entries(rest).map(([ propName, value ], i) =>
             <Input
-              type="range"
+              type="text"
               labelText={propName}
               key={`${i}-${propName}`}
               name={propName}
               value={value}
               onInput={updatePolygon}
-            >
-              <span>{value}</span>
-            </Input>
+            />
           )
         }
       </div>
@@ -33,7 +31,7 @@ const mapStateToProps = ({ polygon }) => ({ ...polygon });
 const mapDispatchToProps = dispatch => ({
   updatePolygon(event) {
     const { name, value } = event.target;
-    dispatch(updatePolygonAction({ [name]: value }));
+    dispatch(updatePolygonAction({ [name]: +value }));
   }
 });
 

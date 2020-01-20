@@ -13,15 +13,13 @@ class LayerControls extends React.Component {
         { 
           Object.entries(rest).map(([ propName, value ], i) =>
             <Input
-              type="range"
+              type="text"
               labelText={propName}
               key={`layer-${i}-${propName}`}
               name={propName}
               value={value}
               onInput={updateLayer}
-            >
-              <span>{value}</span>
-            </Input>
+            />
           )
         }
       </div>
@@ -33,7 +31,7 @@ const mapStateToProps = ({ layers }) => ({ ...layers });
 const mapDispatchToProps = dispatch => ({
   updateLayer(event) {
     const { name, value } = event.target;
-    dispatch(updateLayerAction({ [name]: value }));
+    dispatch(updateLayerAction({ [name]: +value }));
   }
 });
 

@@ -27,12 +27,15 @@ class App extends React.Component {
 
   render() {
     return (
-      <div>
-        <PolygonControls />
-        <LayerControls />
-        <button type="button" onClick={this.draw} style={buttonStyle}>
-          Redraw
-        </button>
+      <div style={{ width: "70%" }}>
+        <div className="wrapper">
+          <PolygonControls />
+          <LayerControls />
+          <button type="button" onClick={this.draw} style={buttonStyle}>
+            Redraw
+          </button>
+        </div>
+
       </div>
     );
   }

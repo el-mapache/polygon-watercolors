@@ -2,9 +2,13 @@ const alpha = .006;
 const initialState = {
   alpha,
   colors: [
-    (a = alpha) => `hsla(355.55, 92%, 70%, ${a})`,
-    (a = alpha) => `hsla(40, 100%, 50%, ${a})`,
-    (a = alpha) => `rgba(50, 50, 200, ${a})`,
+    (a = alpha) => `hsla(298, 16%, 45%, ${a})`,
+    (a = alpha) => `hsla(154, 89%, 44%, ${a})`,
+    (a = alpha) => `hsla(209, 86%, 65%, ${a})`,
+
+    // (a = alpha) => `hsla(355.55, 92%, 70%, ${a})`,
+    // (a = alpha) => `hsla(40, 100%, 50%, ${a})`,
+    // (a = alpha) => `rgba(50, 50, 200, ${a})`,
   ], 
 };
 

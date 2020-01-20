@@ -1,14 +1,3 @@
-class Point {
-  constructor({ x, y }) {
-    this.x = x;
-    this.y = y;
-  }
-}
-
-const PointFactory = (x, y) => new Point({ x, y });
-
-export {
-  Point,
-};
+const PointFactory = (x, y) => ({ x, y });
 
 export default PointFactory;
